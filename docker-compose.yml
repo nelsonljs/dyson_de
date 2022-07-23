@@ -1,0 +1,35 @@
+version: "3.9"
+services:
+  mongo:
+    image: "mongo:latest"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=admin
+      - MONGO_INITDB_ROOT_PASSWORD=admin123
+    ports:
+      - "27017:27017"
+
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongo localhost:27017/productiondb --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+    volumes: # Persist the written volumes in the local machine.
+      - db:/data/db
+
+  ## Initialise database.
+  db_initialise:
+    build: .
+    environment:
+      - MONGO_USERNAME=admin
+      - MONGO_PASSWORD=admin123
+      - MONGO_HOST=mongo
+    depends_on:
+      mongo:
+        condition: service_healthy
+    links: 
+        - mongo
+
+volumes:
+  db:
+    driver: local
