@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import logging
+import json
 import os
 from pathlib import Path
 from pymongo import MongoClient
@@ -78,9 +79,10 @@ class IngestDetailed:
                     mydoc['metadata'] = self.metadata
                     coll.insert_one(mydoc)
     
-    def ingest_stat_info(self):
+    def _ingest_stat_info(self):
         '''
         Ingest Stat info after main, we assume the name is aligned, since character stats do not have any other identifier.
+        Make use of defined ingestion id when ingesting main dataset.
         '''
 
         mydf_name = Path('data','smaller_set','charcters_stats.csv')
@@ -112,15 +114,17 @@ class IngestDetailed:
                         }
                     }
 
+                    # The query is included in case older documents might get updated as well.
                     updated = coll.update_many(query, update)
 
                     if updated.matched_count < 1:
                         logging.error('Unmatched name.')
                         self.error_stat_update.append(mydoc)
 
-    def ingest_power_matrix_info(self):
+    def _ingest_power_matrix_info(self):
         '''
         Ingest Power Matrix info after main, we assume the name is aligned, since character stats do not have any other identifier.
+        Make use of defined ingestion id when ingesting main dataset.
         '''
 
         mydf_name = Path('data','smaller_set','superheroes_power_matrix.csv')
@@ -157,6 +161,17 @@ class IngestDetailed:
                         logging.error('Unmatched name.')
                         self.error_stat_update.append(mydoc)
 
+    def _logging_error_entries(self, destination):
+        '''
+        Erroneous entries to be logged in this method.
+        '''
+        ## Problematic documents:
+        # 1. stat_updates wihtout main character info.
+
+        error_filename = os.path.join(destination, 'error_file.json')
+        with open(error_filename, 'wb') as f:
+            json.dump(f, self.error_stat_update)
+
     def main(self):
         '''
         driver
@@ -164,6 +179,8 @@ class IngestDetailed:
         self.ingest_main_info()
         self.ingest_stat_info()
         self.ingest_power_matrix_info()
+
+        # self._logging_error_entries(os.path.join('data','error'))
 
     def query_one(self):
         '''
@@ -181,4 +198,3 @@ class IngestDetailed:
 if __name__=='__main__':
     a = IngestDetailed()
     a.main()
-    # a.query_one()
